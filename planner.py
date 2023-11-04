@@ -1,13 +1,12 @@
 import abc
 
 from mdp import MaximumLikelihoodMDP
-from typing import Hashable
 
 
 class Planner(abc.ABC):
     """Abstract class defining a planner."""
     @abc.abstractmethod
-    def update(self, model: MaximumLikelihoodMDP, s: Hashable, a: Hashable, r: float, next_s: Hashable):
+    def update(self, model: MaximumLikelihoodMDP, s: int, a: int, r: float, next_s: int):
         """Mutates the utility of state s in model.
 
         Not all arguments may be used, depending on the implementation.

@@ -2,7 +2,7 @@ import abc
 import numpy as np
 
 from scipy.sparse import lil_matrix
-from typing import Hashable, List, Tuple
+from typing import List, Tuple
 
 
 class MDP:
@@ -10,26 +10,26 @@ class MDP:
 
     def __init__(self,
                  gamma: float,
-                 S: List[Hashable],
-                 A: List[Hashable],
+                 S: int,
+                 A: int,
                  T,
                  R):
         """Instantiates an instance.
 
         Args:
           gamma: discount factor.
-          S: State space.
-          A: Action space.
+          S: Size of state space. Assumes states are 1 to S, inclusive.
+          A: Size of action space. Assumes states are 1 to S, inclusive.
           T: Transition matrix (i = state, j = action)
           R: Reward matrix (i = state, j = action).
         """
         self.gamma = gamma
-        self.__s_map = {s : index for (index, s) in enumerate(S)}
-        self.__a_map = {a : index for (index, a) in enumerate(A)}
+        self.state_count = S
+        self.action_count = A
         self.T = T
         self.R = R
 
-    def __action_index(self, a: Hashable) -> int:
+    def __action_index(self, a: int) -> int:
         """Returns the index of a in the internal map.
 
         Args:
@@ -39,9 +39,9 @@ class MDP:
           the representation of a as an int that can be indexed in the internal
           count matrix.
         """
-        return self.__a_map[a]
+        return a - 1
 
-    def __state_index(self, s: Hashable) -> int:
+    def __state_index(self, s: int) -> int:
         """Returns the index of s in the internal map.
 
         Args:
@@ -51,9 +51,9 @@ class MDP:
           the representation of s as an int that can be indexed in the internal
           count matrix.
         """
-        return self.__s_map[s]
+        return s - 1
 
-    def __tr(self, s: Hashable, a: Hashable) -> Tuple[Hashable, float]:
+    def __tr(self, s: int, a: int) -> Tuple[int, float]:
         """Samples transition and reward.
 
         Args:
@@ -65,10 +65,11 @@ class MDP:
         """
         s_index = self.__state_index(s)
         a_index = self.__action_index(a)
-        next_state = np.random.choice(self.__s_map.keys(), p = self.T[s_index, a_index])
+        next_state = np.random.choice(np.arange(1, self.state_count + 1),
+                                      p = self.T[s_index, a_index])
         return (next_state, self.R[s_index, a_index])
 
-    def simulate(self, s: Hashable, policy) -> Tuple[Hashable, Hashable, float, Hashable]:
+    def simulate(self, s: int, policy) -> Tuple[int, int, float, int]:
         """Simulates one policy rollout."""
 
         a = policy(s)
@@ -79,17 +80,17 @@ class MDP:
 class MaximumLikelihoodMDP(abc.ABC):
     """Abstract class defining an MLE MDP."""
 
-    def __init__(self, gamma: float, S: List[Hashable], A: List[Hashable]):
+    def __init__(self, gamma: float, S: int, A: int):
         """Should not be called directly.
 
         Args:
           gamma: discount factor.
-          S: State space.
-          A: Action space.
+          S: Size of state space. States are assumed 1 - S, inclusive.
+          A: Size of action space. States are assumed 1 - A, inclusive.
         """
         self.gamma = gamma
-        self.__s_map = {s : index for (index, s) in enumerate(S)}
-        self.__a_map = {a : index for (index, a) in enumerate(A)}
+        self.state_space_size = S
+        self.action_space_size = A
         # Maps state-action pairs, to potential next states.
         # Row format:
         # state 0 - action 0
@@ -98,14 +99,15 @@ class MaximumLikelihoodMDP(abc.ABC):
         # state 1 - action 0
         # ...
         # state |S-1| - action |A-1|
-        self.N = lil_matrix((len(S) * len(A), len(S)))
-        self.U = lil_matrix((len(S), 1))
+        self.N = lil_matrix((S * A, S))
+        self.U = lil_matrix((S, 1))
 
-    def actions(self) -> List[Hashable]:
+    def actions(self) -> List[int]:
         """Returns actions for this MDP."""
-        return self.__a_map.keys()
 
-    def state_index(self, s: Hashable) -> int:
+        return np.arange(1, self.action_space_size + 1)
+
+    def state_index(self, s: int) -> int:
         """Returns the index of s in the internal map.
 
         Args:
@@ -115,13 +117,14 @@ class MaximumLikelihoodMDP(abc.ABC):
           the representation of s as an int that can be indexed in the internal
           count matrix.
         """
-        return self.__s_map[s]
+        return s - 1
 
-    def states(self) -> List[Hashable]:
+    def states(self) -> List[int]:
         """Returns list of states for the model."""
-        return self.__s_map.keys()
 
-    def action_index(self, a: Hashable) -> int:
+        return np.arange(1, self.state_space_size + 1)
+
+    def action_index(self, a: int) -> int:
         """Returns the index of a in the internal map.
 
         Args:
@@ -131,21 +134,21 @@ class MaximumLikelihoodMDP(abc.ABC):
           the representation of a as an int that can be indexed in the internal
           count matrix.
         """
-        return self.__a_map[a]
+        return a - 1
 
-    def get_utility(self, s: Hashable) -> float:
+    def get_utility(self, s: int) -> float:
         """Returns utility for state s."""
 
         s_index = self.state_index(s)
         return self.U[s_index][0]
 
-    def set_utility(self, s: Hashable, utility: float):
+    def set_utility(self, s: int, utility: float):
         """Sets utility for state s."""
 
         s_index = self.state_index(s)
         self.U[s_index][0] = utility
 
-    def row_index(self, s: Hashable, a: Hashable) -> int:
+    def row_index(self, s: int, a: int) -> int:
         """Returns the index of (s, a) in the internal counts map."""
 
         s_index = self.state_index(s)
@@ -155,10 +158,23 @@ class MaximumLikelihoodMDP(abc.ABC):
         # s0a1  0*3 + 1 = 1
         # s0a2
         # s1a0  1*3 + 0 = 3
-        return s_index*len(self.__a_map) + a_index
+        return s_index*self.action_space_size + a_index
+
+    def add_count(self, s: int, a: int, next_s: int):
+        """Adds 1 to count matrix.
+
+        Args:
+          s: state
+          a: action
+          next_s: next state that results from state-action pair.
+        """
+
+        next_s_index = self.state_index(next_s)
+        i = self.row_index(s, a)
+        self.N[i, next_s_index] = self.N[i, next_s_index] + 1
 
     @abc.abstractmethod
-    def lookahead(self, s: Hashable, a: Hashable) -> float:
+    def lookahead(self, s: int, a: int) -> float:
         """Returns utility of performing action a from state s.
 
         Uses Bellman equation.
@@ -173,7 +189,7 @@ class MaximumLikelihoodMDP(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def backup(self, s: Hashable) -> float:
+    def backup(self, s: int) -> float:
         """Returns utility of optimal action from state s.
 
         Returns max of lookahead().
@@ -192,7 +208,7 @@ class MaximumLikelihoodMDP(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def update(self, s: Hashable, a: Hashable, r: float, next_s: Hashable):
+    def update(self, s: int, a: int, r: float, next_s: int):
         """Updates model based on given parameters.
 
         Args:
