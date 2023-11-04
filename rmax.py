@@ -29,9 +29,8 @@ class Rmax(MaximumLikelihoodMDP):
           logger_name: optional logging name.
         """
 
-        super().__init__(S, A)
+        super().__init__(gamma, S, A)
         self.rho = lil_matrix((len(S), len(A)))
-        self.gamma = gamma
         self.planner = planner
         self.m = m
         self.rmax = rmax

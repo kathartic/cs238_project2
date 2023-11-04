@@ -3,6 +3,7 @@ import abc
 from mdp import MaximumLikelihoodMDP
 from typing import Hashable
 
+
 class Planner(abc.ABC):
     """Abstract class defining a planner."""
     @abc.abstractmethod
