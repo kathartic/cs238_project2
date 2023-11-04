@@ -8,7 +8,7 @@ class MDP(abc.ABC):
 
     def __init__(self, S: List[Hashable], A: List[Hashable]):
         """Should not be called directly.
-        
+
         Args:
           S: list of states. States must be hashable.
           A: list of actions. Actions must be hashable.
@@ -33,10 +33,10 @@ class MDP(abc.ABC):
 
     def state_index(self, s: Hashable) -> int:
         """Returns the index of s in the internal map.
-        
+
         Args:
           s: state.
-        
+
         Returns:
           the representation of s as an int that can be indexed in the internal
           count matrix.
@@ -49,10 +49,10 @@ class MDP(abc.ABC):
 
     def action_index(self, a: Hashable) -> int:
         """Returns the index of a in the internal map.
-        
+
         Args:
           a: action.
-        
+
         Returns:
           the representation of a as an int that can be indexed in the internal
           count matrix.
@@ -86,7 +86,7 @@ class MDP(abc.ABC):
     @abc.abstractmethod
     def lookahead(self, s: Hashable, a: Hashable) -> float:
         """Returns utility of performing action a from state s.
-        
+
         Uses Bellman equation.
 
         Args:
@@ -97,11 +97,11 @@ class MDP(abc.ABC):
           Utility given current state s and taking action a.
         """
         pass
-    
+
     @abc.abstractmethod
     def backup(self, s: Hashable) -> float:
         """Returns utility of optimal action from state s.
-        
+
         Returns max of lookahead().
 
         Args:

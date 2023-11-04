@@ -17,7 +17,7 @@ class Rmax(MDP):
                  rmax: float,
                  logger_name: str = None):
         """Initializes the instance.
-        
+
         Args:
           S: list of states. State must be hashable.
           A: list of actions. State must be hashable.
@@ -59,7 +59,7 @@ class Rmax(MDP):
         utility = r + self.gamma * np.sum(utilities)
         self.__log(f"Lookahead, U({s}, {a}) = {utility}")
         return utility
-    
+
     def backup(self, s: Hashable) -> float:
         return np.max([self.lookahead(s, a) for a in self.__a_map.keys()])
 

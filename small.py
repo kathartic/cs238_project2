@@ -35,7 +35,7 @@ def main():
     update_count = 2  # TODO(kathuan): tune this
     planner = PrioritizedUpdate(update_count, logger_name)
     model = Rmax(S, A, 0.95, planner, exploration_threshold, rmax, logger_name)
-    
+
 
 if __name__ == '__main__':
     main()

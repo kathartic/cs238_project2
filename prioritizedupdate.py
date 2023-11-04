@@ -10,10 +10,10 @@ class PrioritizedUpdate(Planner):
 
     def __init__(self, m: int, logger_name: str = None):
         """Initializes the instance.
-        
+
         Args:
-          m: number of updates. 
-          loggerName: optional logging name.         
+          m: number of updates.
+          loggerName: optional logging name.
         """
 
         self.m = m
@@ -50,7 +50,7 @@ class PrioritizedUpdate(Planner):
         """
 
         u = model.get_utility(s)
-        s_index = model.state_index(s)        
+        s_index = model.state_index(s)
         model.set_utility(model.backup(s))
         new_utility = model.get_utility(s)
         self.__log(f"Updated utility for state {s}: {u} to {new_utility}")
@@ -62,7 +62,7 @@ class PrioritizedUpdate(Planner):
                 if n_sa <= 0:
                     self.__log(f"No next state counts for action {a_bar}, state {s_bar}")
                     continue
-                
+
                 t = model.N[i, s_index] / n_sa
                 priority = t * abs(new_utility - u)
                 if priority > 0:
@@ -71,7 +71,7 @@ class PrioritizedUpdate(Planner):
                     self.__log(f"Updating priority of state {s_bar} to {updated_priority}")
                     self.pq.put((updated_priority, s_bar))
 
-    
+
     def update(self, model: MDP, s: Hashable, a: Hashable, r: float, next_s: Hashable):
         self.pq.put((np.inf, s))
         for i in range(self.m):
