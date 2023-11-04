@@ -53,7 +53,7 @@ class MDP:
         """
         return s - 1
 
-    def __tr(self, s: int, a: int) -> Tuple[int, float]:
+    def TR(self, s: int, a: int) -> Tuple[int, float]:
         """Samples transition and reward.
 
         Args:
@@ -68,13 +68,6 @@ class MDP:
         next_state = np.random.choice(np.arange(1, self.state_count + 1),
                                       p = self.T[s_index, a_index])
         return (next_state, self.R[s_index, a_index])
-
-    def simulate(self, s: int, policy) -> Tuple[int, int, float, int]:
-        """Simulates one policy rollout."""
-
-        a = policy(s)
-        next_s, r = self.__tr(s, a)
-        return (s, a, r, next_s)
 
 
 class MaximumLikelihoodMDP():
@@ -229,10 +222,6 @@ class MaximumLikelihoodMDP():
         """
         return np.max([self.lookahead(s, a) for a in self.actions()])
 
-    def to_mdp(self) -> MDP:
-        """Converts this instance to an equivalent MDP."""
-        raise NotImplementedError("to_mdp() not implemented.")
-
     def update(self, s: int, a: int, r: float, next_s: int):
         """Updates model based on given parameters.
 
@@ -248,3 +237,22 @@ class MaximumLikelihoodMDP():
         self.add_count(s, a, next_s)
         self.rho[s_index, a_index] = self.rho[s_index, a_index] + r
         self.planner.update(self, s_index, a_index, r, next_s_index)
+
+    def to_mdp(self) -> MDP:
+        """Converts this instance to an equivalent MDP."""
+        raise NotImplementedError("to_mdp() not implemented.")
+
+    def simulate(self, policy, s: int) -> Tuple[int, int]:
+        """Simulates one round using policy.
+
+        Args:
+          policy: callable policy to follow.
+          s: start state.
+
+        Returns:
+          tuple of (action taken, next state)
+        """
+        mdp = self.to_mdp()
+        a = policy(self, s)
+        next_s, r = mdp.TR(s, a)
+        self.update(s, a, r, next_s)

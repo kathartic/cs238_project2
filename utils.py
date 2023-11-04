@@ -1,4 +1,5 @@
 import logging
+import numpy as np
 
 from mdp import MaximumLikelihoodMDP
 from typing import List, Tuple
@@ -17,7 +18,14 @@ def simulate(
     Returns:
       trajectory taken in (state, action) pairs.
     """
-    raise NotImplementedError("simulate() not implemented")
+
+    s = np.random.choice(model.states())
+    trajectory = []
+    for _ in range(max_iter):
+        a, next_state = model.simulate(policy, s)
+        trajectory.append((s, a))
+        s = next_state
+    return trajectory
 
 
 def write_policy(file_name: str,

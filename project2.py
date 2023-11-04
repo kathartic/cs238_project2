@@ -69,7 +69,7 @@ def main():
     gamma = get_gamma(file_name)
     df, S, A = read_data(file_name, logger)
     update_count = 2  # TODO(kathuan): tune this
-    max_iter = 100  # TODO(kathuan): tune this
+    max_iter = S  # TODO(kathuan): tune this
     planner = PrioritizedUpdate(update_count, file_name)
     model = MaximumLikelihoodMDP(S, A, gamma, planner, file_name)
     set_counts(model, df, logger)
