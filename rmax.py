@@ -1,3 +1,4 @@
+import logging
 import numpy as np
 
 from planner import MDP, Planner
@@ -13,7 +14,8 @@ class Rmax(MDP):
                  gamma: float,
                  planner: Planner,
                  m: int,
-                 rmax: float):
+                 rmax: float,
+                 logger_name: str = None):
         """Initializes the instance.
         
         Args:
@@ -23,6 +25,7 @@ class Rmax(MDP):
           planner: planning instance.
           m: count threshold
           rmax: maximum threshold
+          logger_name: optional logging name.
         """
 
         super().__init__(S, A)
@@ -31,18 +34,31 @@ class Rmax(MDP):
         self.planner = planner
         self.m = m
         self.rmax = rmax
+        if logger_name:
+            self.logger = logging.getLogger(logger_name)
+
+    def __log(self, msg: str, level = logging.INFO):
+        """Wrapper around logging."""
+        if self.logger:
+            self.logger.log(level, msg)
 
     def lookahead(self, s: Hashable, a: Hashable) -> float:
         s_index = self.state_index(s)
         a_index = self.action_index(a)
         i = self.row_index(s, a)
-        n = np.sum(self.N[i])
+        n = np.sum(self.N[i, :])
+        self.__log(f"Lookahead, N({s}, {a}) = {n}")
         if n < self.m:
-            return self.rmax / (1 - self.gamma)
+            utility =  self.rmax / (1 - self.gamma)
+            self.__log(f"Lookahead, max discounted utility: U({s}, {a}) = {utility}")
+            return utility
+
         r = self.rho[s_index, a_index] / n
         trans_prob = lambda next_state : self.N[i, self.state_index(next_state)] / n
         utilities = [trans_prob(s_next)*self.get_utility(s_next) for s_next in self.__s_map.keys()]
-        return r + self.gamma * np.sum(utilities)
+        utility = r + self.gamma * np.sum(utilities)
+        self.__log(f"Lookahead, U({s}, {a}) = {utility}")
+        return utility
     
     def backup(self, s: Hashable) -> float:
         return np.max([self.lookahead(s, a) for a in self.__a_map.keys()])
