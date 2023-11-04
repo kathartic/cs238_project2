@@ -9,7 +9,6 @@ class MDP:
     """Defines a MDP."""
 
     def __init__(self,
-                 gamma: float,
                  S: int,
                  A: int,
                  T,
@@ -17,13 +16,11 @@ class MDP:
         """Instantiates an instance.
 
         Args:
-          gamma: discount factor.
           S: Size of state space. Assumes states are 1 to S, inclusive.
           A: Size of action space. Assumes states are 1 to S, inclusive.
-          T: Transition matrix (i = state, j = action)
+          T: Transition matrix (i = state, j = action, k = next state)
           R: Reward matrix (i = state, j = action).
         """
-        self.gamma = gamma
         self.state_count = S
         self.action_count = A
         self.T = T
@@ -83,18 +80,19 @@ class MaximumLikelihoodMDP():
           planner: Planner.
         """
         self.gamma = gamma
-        self.state_space_size = S
-        self.action_space_size = A
+        self.S = S
+        self.A = A
         self.rho = lil_matrix((S, A))
         self.planner = planner
-        # Maps state-action pairs, to potential next states.
+        # Maps action-state pairs, to potential next states.
         # Row format:
-        # state 0 - action 0
-        # state 0 - action 1
+        # action 0 - state 0
+        # action 0 - state 1
         # ...
-        # state 1 - action 0
+        # action 0 - state S-1
+        # action 1 - action 0
         # ...
-        # state |S-1| - action |A-1|
+        # action A-1 - state S-1
         self.N = lil_matrix((S * A, S))
         self.U = lil_matrix((S, 1))
 
@@ -120,7 +118,7 @@ class MaximumLikelihoodMDP():
     def actions(self) -> List[int]:
         """Returns actions for this MDP."""
 
-        return np.arange(1, self.action_space_size + 1)
+        return np.arange(1, self.A + 1)
 
     def get_utility(self, s: int) -> float:
         """Returns utility for state s."""
@@ -155,19 +153,20 @@ class MaximumLikelihoodMDP():
     def states(self) -> List[int]:
         """Returns list of states for the model."""
 
-        return np.arange(1, self.state_space_size + 1)
+        return np.arange(1, self.S + 1)
 
     def row_index(self, s: int, a: int) -> int:
         """Returns the index of (s, a) in the internal counts map."""
 
         s_index = self.state_index(s)
         a_index = self.action_index(a)
-        # states 2, actions 3
-        # s0a0  0*3 + 0 = 0
-        # s0a1  0*3 + 1 = 1
-        # s0a2
-        # s1a0  1*3 + 0 = 3
-        return s_index*self.action_space_size + a_index
+        # states 3, actions 2
+        # a0s0  0*3 + 0 = 0
+        # a0s1  0*3 + 1 = 1
+        # a0s2  0*3 + 2 = 2
+        # a1s0  1*3 + 0 = 3
+        # a1s1  1*3 + 1 = 4
+        return a_index*self.S + s_index
 
     def add_count(self, s: int, a: int, next_s: int):
         """Adds 1 to count matrix.
@@ -238,9 +237,40 @@ class MaximumLikelihoodMDP():
         self.rho[s_index, a_index] = self.rho[s_index, a_index] + r
         self.planner.update(self, s_index, a_index, r, next_s_index)
 
-    def to_mdp(self) -> MDP:
+    def TR(self) -> MDP:
         """Converts this instance to an equivalent MDP."""
-        raise NotImplementedError("to_mdp() not implemented.")
+
+        # N_sa is a matrix holding N(s,a). Each row is a state, each col is an
+        # action.
+        N_sa = self.N.sum(1)
+        N_sa = N_sa.reshape((self.A, self.S))
+        N_sa = np.array(N_sa.transpose())  # |S| x |A|
+
+        # R(s,a) = rho[s,a] / N(s,a) if N(s, a) > 0 else 0
+        R = lil_matrix(np.divide(self.rho.toarray(), N_sa, out=np.zeros(self.rho.shape), where=(N_sa != 0)))
+
+        # T(s,a) = N(s, a, s') / N(s, a) if N(s, a) > 0 else 0
+        T = lil_matrix(self.N.shape)
+        for a in self.actions():
+            # Get counts for all (state, action) pairs with action == a.
+            action_index = self.action_index(a)
+            divisor = N_sa[:, action_index]  # N(s, a == a), |S| x 1 matrix
+
+            # Get all N(s, a = a, s').
+            start_index = self.row_index(1, a)
+            end_index = self.row_index(self.S, a)
+            counts = self.N[start_index:end_index, :]
+
+            # Perform division along the row, so each entry of divisor divides
+            # a row in counts. All the transposing is empirically chosen.
+            T_sa = np.divide(
+                counts.toarray().T,
+                divisor,
+                out=np.zeros((self.S, self.S)),
+                where=(divisor != 0))
+            T[start_index:end_index, :] = T_sa.T
+
+        return MDP(self.S, self.A, T, R)
 
     def simulate(self, policy, s: int) -> Tuple[int, int]:
         """Simulates one round using policy.

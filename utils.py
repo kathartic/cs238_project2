@@ -7,7 +7,7 @@ from typing import List, Tuple
 def simulate(
         model: MaximumLikelihoodMDP,
         policy,
-        max_iter: int) -> List[Tuple[int, int]]:
+        max_iter: int) -> np.ndarray:
     """Simulates using model, policy.
 
     Args:
@@ -20,10 +20,11 @@ def simulate(
     """
 
     s = np.random.choice(model.states())
-    trajectory = []
-    for _ in range(max_iter):
+    trajectory = np.zeros((max_iter, 2))
+    for i in range(max_iter):
         a, next_state = model.simulate(policy, s)
-        trajectory.append((s, a))
+        trajectory[i][0] = s
+        trajectory[i][1] = a
         s = next_state
     return trajectory
 

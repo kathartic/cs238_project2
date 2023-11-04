@@ -12,6 +12,16 @@ from typing import Tuple
 
 
 def get_gamma(file_name: str) -> float:
+    """Returns discount factor for supported filenames.
+
+    Values taken from course website.
+
+    Args:
+      file_name: supported filenames are "small", "medium", or "large".
+
+    Returns:
+      discount factor
+    """
     if file_name == "small":
         return 0.95
     elif file_name == "medium":
