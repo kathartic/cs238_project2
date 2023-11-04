@@ -1,7 +1,7 @@
 import logging
 import numpy as np
 
-from mdp import MaximumLikelihoodMDP
+from mdp import MaximumLikelihoodMDP, MDP
 from planner import Planner
 from scipy.sparse import lil_matrix
 from typing import Hashable, List
@@ -42,6 +42,9 @@ class Rmax(MaximumLikelihoodMDP):
         if self.logger:
             self.logger.log(level, msg)
 
+    def backup(self, s: Hashable) -> float:
+        return np.max([self.lookahead(s, a) for a in self.__a_map.keys()])
+
     def lookahead(self, s: Hashable, a: Hashable) -> float:
         s_index = self.state_index(s)
         a_index = self.action_index(a)
@@ -60,8 +63,8 @@ class Rmax(MaximumLikelihoodMDP):
         self.__log(f"Lookahead, U({s}, {a}) = {utility}")
         return utility
 
-    def backup(self, s: Hashable) -> float:
-        return np.max([self.lookahead(s, a) for a in self.__a_map.keys()])
+    def to_mdp(self) -> MDP:
+        raise NotImplementedError("unimplemented")
 
     def update(self, s: Hashable, a: Hashable, r: float, next_s: Hashable):
         i = self.row_index(s, a)

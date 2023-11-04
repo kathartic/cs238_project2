@@ -187,6 +187,11 @@ class MaximumLikelihoodMDP(abc.ABC):
         pass
 
     @abc.abstractmethod
+    def to_mdp(self) -> MDP:
+        """Converts this instance to an equivalent MDP."""
+        pass
+
+    @abc.abstractmethod
     def update(self, s: Hashable, a: Hashable, r: float, next_s: Hashable):
         """Updates model based on given parameters.
 
