@@ -2,15 +2,16 @@ import logging
 
 from prioritizedupdate import PrioritizedUpdate
 from rmax import Rmax
+from typing import Hashable, List, Tuple
 
 def simulate():
     """Simulates."""
     pass
 
 
-def read_data():
+def read_data() -> Tuple:
     """Opens file and reads data."""
-    pass
+    return ([], [], 0)
 
 
 def make_logger(logger_name: str) -> logging.Logger:

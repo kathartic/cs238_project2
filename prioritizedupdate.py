@@ -2,7 +2,7 @@ import logging
 import queue
 import numpy as np
 
-from planner import MDP, Planner
+from planner import MaximumLikelihoodMDP, Planner
 from typing import Hashable
 
 class PrioritizedUpdate(Planner):
@@ -39,7 +39,7 @@ class PrioritizedUpdate(Planner):
         if self.logger:
             self.logger.log(level, msg)
 
-    def __update(self, model: MDP, s: Hashable):
+    def __update(self, model: MaximumLikelihoodMDP, s: Hashable):
         """Internal method for update.
 
         Called by public method. Given state s, updates its utility in the
@@ -72,7 +72,7 @@ class PrioritizedUpdate(Planner):
                     self.pq.put((updated_priority, s_bar))
 
 
-    def update(self, model: MDP, s: Hashable, a: Hashable, r: float, next_s: Hashable):
+    def update(self, model: MaximumLikelihoodMDP, s: Hashable, a: Hashable, r: float, next_s: Hashable):
         self.pq.put((np.inf, s))
         for i in range(self.m):
             if self.pq.qsize() == 0:

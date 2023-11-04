@@ -1,11 +1,12 @@
 import logging
 import numpy as np
 
-from planner import MDP, Planner
+from mdp import MaximumLikelihoodMDP
+from planner import Planner
 from scipy.sparse import lil_matrix
 from typing import Hashable, List
 
-class Rmax(MDP):
+class Rmax(MaximumLikelihoodMDP):
     """MDP representing R-MAX."""
 
     def __init__(self,
@@ -73,4 +74,4 @@ class Rmax(MDP):
         self.planner.update(self, s_index, a_index, r, next_s_index)
 
 
-MDP.register(Rmax)
+MaximumLikelihoodMDP.register(Rmax)
