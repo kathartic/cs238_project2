@@ -22,10 +22,10 @@ def simulate(
     s = np.random.choice(model.states())
     trajectory = np.zeros((max_iter, 2))
     for i in range(max_iter):
-        a, next_state = model.simulate(policy, s)
+        a, next_s = model.simulate(policy, s)
         trajectory[i][0] = s
         trajectory[i][1] = a
-        s = next_state
+        s = next_s
     return trajectory
 
 

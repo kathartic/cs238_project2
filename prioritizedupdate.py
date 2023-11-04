@@ -50,20 +50,15 @@ class PrioritizedUpdate(Planner):
         """
 
         u = model.get_utility(s)
-        s_index = model.state_index(s)
         model.set_utility(model.backup(s))
         new_utility = model.get_utility(s)
         self.__log(f"Updated utility for state {s}: {u} to {new_utility}")
 
+        mdp = model.to_mdp()
+
         for s_bar in model.states():
             for a_bar in model.actions():
-                i = model.row_index(s_bar, a_bar)
-                n_sa = np.sum(model.N[i, :])
-                if n_sa <= 0:
-                    self.__log(f"No next state counts for action {a_bar}, state {s_bar}")
-                    continue
-
-                t = model.N[i, s_index] / n_sa
+                t = mdp.transition_prob(s, a_bar, s_bar)
                 priority = t * abs(new_utility - u)
                 if priority > 0:
                     current_priority = self.__current_priority(s_bar)

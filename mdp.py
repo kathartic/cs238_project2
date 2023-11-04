@@ -18,7 +18,7 @@ class MDP:
         Args:
           S: Size of state space. Assumes states are 1 to S, inclusive.
           A: Size of action space. Assumes states are 1 to S, inclusive.
-          T: Transition matrix (i = state, j = action, k = next state)
+          T: Transition matrix.
           R: Reward matrix (i = state, j = action).
         """
         self.state_count = S
@@ -50,6 +50,23 @@ class MDP:
         """
         return s - 1
 
+    def row_index(self, s: int, a: int) -> int:
+        """Returns the index of (s, a) in the internal counts map."""
+
+        s_index = self.state_index(s)
+        a_index = self.action_index(a)
+        # states 3, actions 2
+        # a0s0  0*3 + 0 = 0
+        # a0s1  0*3 + 1 = 1
+        # a0s2  0*3 + 2 = 2
+        # a1s0  1*3 + 0 = 3
+        # a1s1  1*3 + 1 = 4
+        return a_index*self.S + s_index
+
+    def transition_prob(self, s: int, a: int, next_s: int) -> float:
+        i = self.row_index(s, a)
+        return self.T[i, next_s]
+
     def TR(self, s: int, a: int) -> Tuple[int, float]:
         """Samples transition and reward.
 
@@ -62,8 +79,9 @@ class MDP:
         """
         s_index = self.__state_index(s)
         a_index = self.__action_index(a)
+        i = self.row_index(s, a)
         next_state = np.random.choice(np.arange(1, self.state_count + 1),
-                                      p = self.T[s_index, a_index])
+                                      p = np.array(self.T[i, :]))
         return (next_state, self.R[s_index, a_index])
 
 
@@ -237,7 +255,7 @@ class MaximumLikelihoodMDP():
         self.rho[s_index, a_index] = self.rho[s_index, a_index] + r
         self.planner.update(self, s_index, a_index, r, next_s_index)
 
-    def TR(self) -> MDP:
+    def to_mdp(self) -> MDP:
         """Converts this instance to an equivalent MDP."""
 
         # N_sa is a matrix holding N(s,a). Each row is a state, each col is an
@@ -285,4 +303,6 @@ class MaximumLikelihoodMDP():
         mdp = self.to_mdp()
         a = policy(self, s)
         next_s, r = mdp.TR(s, a)
+        self.__log(f"Update after simulation: (s, a, r, s'): ({s}, {a}, {r}, {next_s})")
         self.update(s, a, r, next_s)
+        return (a, next_s)

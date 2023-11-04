@@ -7,7 +7,7 @@ import utils
 
 from explore import e_greedy
 from mdp import MaximumLikelihoodMDP
-from prioritizedupdate import PrioritizedUpdate
+from randomizedupdate import RandomizedUpdate
 from typing import Tuple
 
 
@@ -80,7 +80,7 @@ def main():
     df, S, A = read_data(file_name, logger)
     update_count = 2  # TODO(kathuan): tune this
     max_iter = S  # TODO(kathuan): tune this
-    planner = PrioritizedUpdate(update_count, file_name)
+    planner = RandomizedUpdate(update_count, file_name)
     model = MaximumLikelihoodMDP(S, A, gamma, planner, file_name)
     set_counts(model, df, logger)
 
