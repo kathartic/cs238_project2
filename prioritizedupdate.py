@@ -2,7 +2,8 @@ import logging
 import queue
 import numpy as np
 
-from planner import MaximumLikelihoodMDP, Planner
+from mdp import MaximumLikelihoodMDP
+from planner import Planner
 
 class PrioritizedUpdate(Planner):
     """Implements prioritized update exploration."""

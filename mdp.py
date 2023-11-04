@@ -1,4 +1,4 @@
-import abc
+import logging
 import numpy as np
 
 from scipy.sparse import lil_matrix
@@ -77,20 +77,23 @@ class MDP:
         return (s, a, r, next_s)
 
 
-class MaximumLikelihoodMDP(abc.ABC):
-    """Abstract class defining an MLE MDP."""
+class MaximumLikelihoodMDP():
+    """Class defining an MLE MDP."""
 
-    def __init__(self, gamma: float, S: int, A: int):
-        """Should not be called directly.
+    def __init__(self, S: int, A: int, gamma: float, planner, logger_name: str = None):
+        """Instantiates a new instance.
 
         Args:
-          gamma: discount factor.
           S: Size of state space. States are assumed 1 - S, inclusive.
           A: Size of action space. States are assumed 1 - A, inclusive.
+          gamma: discount factor.
+          planner: Planner.
         """
         self.gamma = gamma
         self.state_space_size = S
         self.action_space_size = A
+        self.rho = lil_matrix((S, A))
+        self.planner = planner
         # Maps state-action pairs, to potential next states.
         # Row format:
         # state 0 - action 0
@@ -102,27 +105,13 @@ class MaximumLikelihoodMDP(abc.ABC):
         self.N = lil_matrix((S * A, S))
         self.U = lil_matrix((S, 1))
 
-    def actions(self) -> List[int]:
-        """Returns actions for this MDP."""
+        if logger_name:
+            self.logger = logging.getLogger(logger_name)
 
-        return np.arange(1, self.action_space_size + 1)
-
-    def state_index(self, s: int) -> int:
-        """Returns the index of s in the internal map.
-
-        Args:
-          s: state.
-
-        Returns:
-          the representation of s as an int that can be indexed in the internal
-          count matrix.
-        """
-        return s - 1
-
-    def states(self) -> List[int]:
-        """Returns list of states for the model."""
-
-        return np.arange(1, self.state_space_size + 1)
+    def __log(self, msg: str, level = logging.INFO):
+        """Wrapper around logging."""
+        if self.logger:
+            self.logger.log(level, msg)
 
     def action_index(self, a: int) -> int:
         """Returns the index of a in the internal map.
@@ -131,10 +120,14 @@ class MaximumLikelihoodMDP(abc.ABC):
           a: action.
 
         Returns:
-          the representation of a as an int that can be indexed in the internal
-          count matrix.
+          index of a in the internal representations.
         """
         return a - 1
+
+    def actions(self) -> List[int]:
+        """Returns actions for this MDP."""
+
+        return np.arange(1, self.action_space_size + 1)
 
     def get_utility(self, s: int) -> float:
         """Returns utility for state s."""
@@ -142,11 +135,34 @@ class MaximumLikelihoodMDP(abc.ABC):
         s_index = self.state_index(s)
         return self.U[s_index][0]
 
+    def set_reward(self, s: int, a: int, reward: float):
+        """Sets reward for state s and action a."""
+
+        s_index = self.state_index(s)
+        a_index = self.action_index(a)
+        self.rho[s_index, a_index] = reward
+
     def set_utility(self, s: int, utility: float):
         """Sets utility for state s."""
 
         s_index = self.state_index(s)
         self.U[s_index][0] = utility
+
+    def state_index(self, s: int) -> int:
+        """Returns the index of s in the internal map.
+
+        Args:
+          s: state.
+
+        Returns:
+          index of s in internal representations.
+        """
+        return s - 1
+
+    def states(self) -> List[int]:
+        """Returns list of states for the model."""
+
+        return np.arange(1, self.state_space_size + 1)
 
     def row_index(self, s: int, a: int) -> int:
         """Returns the index of (s, a) in the internal counts map."""
@@ -173,7 +189,6 @@ class MaximumLikelihoodMDP(abc.ABC):
         i = self.row_index(s, a)
         self.N[i, next_s_index] = self.N[i, next_s_index] + 1
 
-    @abc.abstractmethod
     def lookahead(self, s: int, a: int) -> float:
         """Returns utility of performing action a from state s.
 
@@ -186,9 +201,21 @@ class MaximumLikelihoodMDP(abc.ABC):
         Returns:
           Utility given current state s and taking action a.
         """
-        pass
+        s_index = self.state_index(s)
+        a_index = self.action_index(a)
+        i = self.row_index(s, a)
+        n = np.sum(self.N[i, :])
+        self.__log(f"Lookahead, N({s}, {a}) = {n}")
+        if n == 0:
+            return 0.0
 
-    @abc.abstractmethod
+        r = self.rho[s_index, a_index] / n
+        trans_prob = lambda next_state : self.N[i, self.state_index(next_state)] / n
+        utilities = [trans_prob(s_next)*self.get_utility(s_next) for s_next in self.states()]
+        utility = r + self.gamma * np.sum(utilities)
+        self.__log(f"Lookahead, U({s}, {a}) = {utility}")
+        return utility
+
     def backup(self, s: int) -> float:
         """Returns utility of optimal action from state s.
 
@@ -200,14 +227,12 @@ class MaximumLikelihoodMDP(abc.ABC):
         Returns:
           Utility of optimal action.
         """
-        pass
+        return np.max([self.lookahead(s, a) for a in self.actions()])
 
-    @abc.abstractmethod
     def to_mdp(self) -> MDP:
         """Converts this instance to an equivalent MDP."""
-        pass
+        raise NotImplementedError("to_mdp() not implemented.")
 
-    @abc.abstractmethod
     def update(self, s: int, a: int, r: float, next_s: int):
         """Updates model based on given parameters.
 
@@ -217,4 +242,9 @@ class MaximumLikelihoodMDP(abc.ABC):
           r: reward for taking action a in state s
           next_s: next state to go to.
         """
-        pass
+        s_index = self.state_index(s)
+        a_index = self.action_index(a)
+        next_s_index = self.state_index(next_s)
+        self.add_count(s, a, next_s)
+        self.rho[s_index, a_index] = self.rho[s_index, a_index] + r
+        self.planner.update(self, s_index, a_index, r, next_s_index)

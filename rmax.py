@@ -1,9 +1,7 @@
-import logging
 import numpy as np
 
 from mdp import MaximumLikelihoodMDP, MDP
 from planner import Planner
-from typing import List
 
 
 class Rmax(MaximumLikelihoodMDP):
@@ -31,21 +29,10 @@ class Rmax(MaximumLikelihoodMDP):
           logger_name: optional logging name.
         """
 
-        super().__init__(gamma, S, A)
+        super().__init__(S, A, gamma, planner, logger_name)
         self.rho = rho
-        self.planner = planner
         self.m = m
         self.rmax = rmax
-        if logger_name:
-            self.logger = logging.getLogger(logger_name)
-
-    def __log(self, msg: str, level = logging.INFO):
-        """Wrapper around logging."""
-        if self.logger:
-            self.logger.log(level, msg)
-
-    def backup(self, s: int) -> float:
-        return np.max([self.lookahead(s, a) for a in self.actions()])
 
     def lookahead(self, s: int, a: int) -> float:
         s_index = self.state_index(s)
@@ -67,14 +54,3 @@ class Rmax(MaximumLikelihoodMDP):
 
     def to_mdp(self) -> MDP:
         raise NotImplementedError("unimplemented")
-
-    def update(self, s: int, a: int, r: float, next_s: int):
-        s_index = self.state_index(s)
-        a_index = self.action_index(a)
-        next_s_index = self.state_index(next_s)
-        self.add_count(s, a, next_s)
-        self.rho[s_index, a_index] = self.rho[s_index, a_index] + r
-        self.planner.update(self, s_index, a_index, r, next_s_index)
-
-
-MaximumLikelihoodMDP.register(Rmax)
