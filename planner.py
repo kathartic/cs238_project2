@@ -1,10 +1,86 @@
 import abc
 
+from scipy.sparse import lil_matrix
+from typing import Hashable, List
+
 class MDP(abc.ABC):
     """Abstract class defining an MDP."""
 
+    def __init__(self, S: List[Hashable], A: List[Hashable]):
+        """Should not be called directly.
+        
+        Args:
+          S: list of states. States must be hashable.
+          A: list of actions. Actions must be hashable.
+        """
+        self.__s_map = {s : index for (index, s) in enumerate(S)}
+        self.__a_map = {a : index for (index, a) in enumerate(A)}
+        self.N = lil_matrix((len(S) * len(A), len(S)))
+        self.U = lil_matrix((len(S), 1))
+
+
+    def actions(self) -> List[Hashable]:
+        """Returns actions for this MDP."""
+        return self.__a_map.keys()
+
+
+    def state_index(self, s: Hashable) -> int:
+        """Returns the index of s in the internal map.
+        
+        Args:
+          s: state.
+        
+        Returns:
+          the representation of s as an int that can be indexed in the internal
+          count matrix.
+        """
+        return self.__s_map[s]
+
+
+    def states(self) -> List[Hashable]:
+        """Returns list of states for the model."""
+        return self.__s_map.keys()
+
+
+    def action_index(self, a: Hashable) -> int:
+        """Returns the index of a in the internal map.
+        
+        Args:
+          a: action.
+        
+        Returns:
+          the representation of a as an int that can be indexed in the internal
+          count matrix.
+        """
+        return self.__a_map[a]
+
+
+    def get_utility(self, s: Hashable) -> float:
+        """Returns utility for state s."""
+        s_index = self.state_index(s)
+        return self.U[s_index][0]
+
+
+    def set_utility(self, s: Hashable, utility: float):
+        """Sets utility for state s."""
+        s_index = self.state_index(s)
+        self.U[s_index][0] = utility
+
+
+    def row_index(self, s: Hashable, a: Hashable) -> int:
+        """Returns the index of (s, a) in the internal counts map."""
+        s_index = self.state_index(s)
+        a_index = self.action_index(a)
+        # states 2, actions 3
+        # s0a0  0*3 + 0 = 0
+        # s0a1  0*3 + 1 = 1
+        # s0a2
+        # s1a0  1*3 + 0 = 3
+        return s_index*len(self.__a_map) + a_index
+
+
     @abc.abstractmethod
-    def lookahead(self, s, a) -> float:
+    def lookahead(self, s: Hashable, a: Hashable) -> float:
         """Returns utility of performing action a from state s.
         
         Uses Bellman equation.
@@ -19,7 +95,7 @@ class MDP(abc.ABC):
         pass
     
     @abc.abstractmethod
-    def backup(self, s) -> float:
+    def backup(self, s: Hashable) -> float:
         """Returns utility of optimal action from state s.
         
         Returns max of lookahead().
@@ -33,7 +109,7 @@ class MDP(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def update(self, s, a, r, next_s):
+    def update(self, s: Hashable, a: Hashable, r: float, next_s: Hashable):
         """Updates model based on given parameters.
         
         Args:
@@ -48,5 +124,5 @@ class MDP(abc.ABC):
 class Planner(abc.ABC):
     """Abstract class defining a planner."""
     @abc.abstractmethod
-    def update(self, model: MDP, s: int, a: int, r: float, next_s: int):
+    def update(self, model: MDP, s: Hashable, a: Hashable, r: float, next_s: Hashable):
         """Mutates given model."""
