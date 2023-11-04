@@ -26,20 +26,11 @@ class Rmax(MDP):
         """
 
         super().__init__(S, A)
-        # Maps state-action pairs, to potential next states.
-        # Row format:
-        # state 0 - action 0
-        # state 0 - action 1
-        # ...
-        # state 1 - action 0
-        # ...
-        # state |S-1| - action |A-1|
         self.rho = lil_matrix((len(S), len(A)))
         self.gamma = gamma
         self.planner = planner
         self.m = m
         self.rmax = rmax
-
 
     def lookahead(self, s: Hashable, a: Hashable) -> float:
         s_index = self.state_index(s)
@@ -53,10 +44,8 @@ class Rmax(MDP):
         utilities = [trans_prob(s_next)*self.get_utility(s_next) for s_next in self.__s_map.keys()]
         return r + self.gamma * np.sum(utilities)
     
-    
     def backup(self, s: Hashable) -> float:
         return np.max([self.lookahead(s, a) for a in self.__a_map.keys()])
-
 
     def update(self, s: Hashable, a: Hashable, r: float, next_s: Hashable):
         i = self.row_index(s, a)

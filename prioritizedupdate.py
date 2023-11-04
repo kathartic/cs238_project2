@@ -13,9 +13,9 @@ class PrioritizedUpdate(Planner):
         Args:
           m: number of updates.          
         """
+
         self.m = m
         self.pq = queue.PriorityQueue()
-
 
     def __current_priority(self, s: Hashable) -> float:
         """Returns current priority for state s, or 0 if not present."""
@@ -27,8 +27,16 @@ class PrioritizedUpdate(Planner):
                 return priority
         return 0.0
 
-
     def __update(self, model: MDP, s: Hashable):
+        """Internal method for update.
+
+        Called by public method. Given state s, updates its utility in the
+        model AND updates its priority in the internal PQ.
+
+        Args:
+          s: state
+        """
+
         u = model.get_utility(s)
         s_index = model.state_index(s)
         model.set_utility(model.backup(s))
