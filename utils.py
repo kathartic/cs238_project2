@@ -37,7 +37,8 @@ def set_counts(model: MaximumLikelihoodMDP,
 
 
 def write_model_policy(file_name: str,
-                 model: MaximumLikelihoodMDP):
+                 model: MaximumLikelihoodMDP,
+                 logger: logging.Logger = None):
     """Writes policy to file <file_name>.policy.
 
     Each row i in the file corresponds to the action taken for the state i.
@@ -46,6 +47,7 @@ def write_model_policy(file_name: str,
       model: Model
     """
     egreedy = EGreedy(epsilon = 0)
+    logger.info(f'Writing to file {file_name}.policy')
     with open(file_name + '.policy', 'w') as f:
         for state in model.states():
             best_action = egreedy(model, state)

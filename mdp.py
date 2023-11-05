@@ -75,7 +75,9 @@ class MDP(IndexAdapter):
                  S: int,
                  A: int,
                  T,
-                 R):
+                 R,
+                 logger: logging.Logger = None,
+                 order = 'action'):
         """Instantiates an instance.
 
         Args:
@@ -84,9 +86,10 @@ class MDP(IndexAdapter):
           T: Transition matrix.
           R: Reward matrix (i = state, j = action).
         """
-        super().__init__(S, A)
+        super().__init__(S, A, order = order)
         self.T = T
         self.R = R
+        self.logger = logger
 
     def transition_prob(self, s: int, a: int, next_s: int) -> float:
         i = self.row_index(s, a)
@@ -106,6 +109,9 @@ class MDP(IndexAdapter):
         a_index = self.action_index(a)
         i = self.row_index(s, a)
         probs = np.array(self.T[i, :].toarray()).reshape((self.S,))
+        prob_sum = np.sum(probs)
+        if prob_sum != 1 and self.logger is not None:
+            self.logger.critical(f'Probabilities for T({s}, {a}) sum to {prob_sum}.')
         next_state = np.random.choice(np.arange(1, self.S + 1),
                                       p = probs)
         return (next_state, self.R[s_index, a_index])
@@ -114,7 +120,13 @@ class MDP(IndexAdapter):
 class MaximumLikelihoodMDP(IndexAdapter):
     """Class defining an MLE MDP."""
 
-    def __init__(self, S: int, A: int, gamma: float, planner, logger_name: str = None):
+    def __init__(self,
+                 S: int,
+                 A: int,
+                 gamma: float,
+                 planner,
+                 logger_name: str = None,
+                 order = 'action'):
         """Instantiates a new instance.
 
         Args:
@@ -122,9 +134,11 @@ class MaximumLikelihoodMDP(IndexAdapter):
           A: Size of action space. States are assumed 1 - A, inclusive.
           gamma: discount factor.
           planner: Planner.
+          logger_name: name of logger
+          order: order
         """
 
-        super().__init__(S, A)
+        super().__init__(S, A, order = order)
         self.gamma = gamma
         self.rho = lil_matrix((S, A))
         self.planner = planner
@@ -163,7 +177,6 @@ class MaximumLikelihoodMDP(IndexAdapter):
 
         s_index = self.state_index(s)
         self.U[s_index, 0] = utility
-
 
     def states(self) -> List[int]:
         """Returns sorted list of states for the model."""
@@ -275,12 +288,23 @@ class MaximumLikelihoodMDP(IndexAdapter):
                     where=(divisor != 0))
                 T[start_index:end_index, :] = T_sa.T
         elif self.order == 'state':
-            raise NotImplementedError('not implemented')
+            for a in self.actions():
+                for s in self.states():
+                    a_index = self.action_index(a)
+                    s_index = self.state_index(s)
+                    divisor = N_sa[s_index, a_index]
+                    i = self.row_index(s, a)
+                    if divisor == 0:
+                        T[i, :] = 0
+                        continue
+
+                    T[i, :] = T[i, :] / divisor
+                self.__log(f'Wrote T(s\'| a = {a}, s)')
         else:
             raise ValueError(f'Unsupported ordering: {self.order}')
 
-
-        return MDP(self.S, self.A, T, R)
+        self.__log(f'Wrote T: {T}')
+        return MDP(self.S, self.A, T, R, logger=self.logger, order=self.order)
 
     def simulate(self, policy, s: int) -> Tuple[int, int]:
         """Simulates one round using policy.

@@ -16,13 +16,14 @@ class EGreedy():
         self.alpha = alpha
         self.logger = logger
 
-    def __call__(self, model: MaximumLikelihoodMDP, s: int) -> int:
+    def __call__(self, model, s: int, actions=None) -> int:
       """Returns next action to take.
 
       Args:
         model: Model to choose actions from.
         epsilon: probability of choosing non-greedy action.
         s: state to take action from.
+        actions: allowable actions.
 
       Returns:
         action (in model representation) to take.
@@ -36,7 +37,8 @@ class EGreedy():
 
       max_a = 1
       q_max = -np.inf
-      for action in model.actions():
+      all_actions = actions if actions is not None else model.actions()
+      for action in all_actions:
           q_sa = model.lookahead(s, action)
           if q_sa > q_max:
               q_max = q_sa
