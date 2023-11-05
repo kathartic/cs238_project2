@@ -1,6 +1,5 @@
 import logging
 import pandas
-import numpy as np
 
 from explore import EGreedy
 from mdp import MaximumLikelihoodMDP

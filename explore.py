@@ -1,8 +1,6 @@
 import logging
 import numpy as np
 
-from mdp import MaximumLikelihoodMDP
-
 
 class EGreedy():
     """Implements e-greedy policy."""

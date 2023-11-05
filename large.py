@@ -34,15 +34,15 @@ def read_data(file_name: str,
 
 
 def main():
-    file_name = "large"
+    file_name = "large"  # or medium
     logger = utils.make_logger(file_name)
     start = time.time()
 
     # Set up MDP, planner.
     gamma = utils.get_gamma(file_name)
     df, S, A = read_data(file_name, logger)
-    state_size = 312020
-    max_iter = 150000  # TODO(kathuan): tune this
+    state_size = 312020  # 50000 for medium
+    max_iter = 150000  # 100000 for medium
     Q = lil_matrix((state_size, A))
     qlearn_model = qlearning.QLearning(state_size,
                                        A,
