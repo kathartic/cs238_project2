@@ -4,7 +4,6 @@ import numpy as np
 
 from explore import EGreedy
 from mdp import MaximumLikelihoodMDP
-from typing import List, Tuple
 
 
 def get_gamma(file_name: str) -> float:
@@ -29,15 +28,12 @@ def get_gamma(file_name: str) -> float:
 
 
 def set_counts(model: MaximumLikelihoodMDP,
-               df: pandas.DataFrame,
-               logger: logging.Logger):
+               df: pandas.DataFrame):
     """Sets counts and rewards for the given model."""
 
     for _, row in df.iterrows():
         model.add_count(row['s'], row['a'], row['sp'])
         model.set_reward(row['s'], row['a'], row['r'])
-    logger.info(f'Counts: {model.N.toarray()}')
-    logger.info(f'Rewards: {model.rho.toarray()}')
 
 
 def write_model_policy(file_name: str,

@@ -4,8 +4,71 @@ import numpy as np
 from scipy.sparse import lil_matrix
 from typing import List, Tuple
 
+class IndexAdapter():
+    """Utility for converting 1-based indices to 0-based."""
 
-class MDP:
+    def __init__(self, S: int, A: int, order='action'):
+        """Instantiates the instance.
+
+        Args:
+          S: Size of state space. States are assumed 1 - S, inclusive.
+          A: Size of action space. States are assumed 1 - A, inclusive.
+          order: Ordering of (state, action) pairs. If 'action', ordering
+              in internal matrix is (action, state). If 'state', ordering is
+              in internal matrix is (state, action). 'action' is more efficient
+              as generally |S| >> |A|, but 'state' is more memory efficient.
+        """
+        self.S = S
+        self.A = A
+        self.order = order
+
+    def action_index(self, a: int) -> int:
+        """Returns the index of a in the internal map.
+
+        Args:
+          a: action.
+
+        Returns:
+          index of a in the internal representations.
+        """
+        return a - 1
+
+    def state_index(self, s: int) -> int:
+        """Returns the index of s in the internal map.
+
+        Args:
+          s: state.
+
+        Returns:
+          index of s in internal representations.
+        """
+        return s - 1
+
+    def row_index(self, s: int, a: int) -> int:
+        """Returns the index of (s, a) in the internal counts map."""
+
+        s_index = self.state_index(s)
+        a_index = self.action_index(a)
+        if self.order == 'action':
+            # actions 2, states 3
+            # a0s0 0*3 + 0 = 0
+            # a0s1 0*3 + 1 = 1
+            # a0s2 0*3 + 2 = 2
+            # a1s0 1*3 + 0 = 3
+            return a_index*self.S + s_index
+        elif self.order == 'state':
+            # states 3, actions 2
+            # s0a0  0*2 + 0 = 0
+            # s0a1  0*2 + 1 = 1
+            # s1a0  0*2 + 0 = 2
+            # s1a1  1*2 + 1 = 3
+            # s2a1  2*2 + 0 = 4
+            return s_index*self.A + a_index
+        else:
+            raise ValueError(f'Unsupported ordering: {self.order}')
+
+
+class MDP(IndexAdapter):
     """Defines a MDP."""
 
     def __init__(self,
@@ -21,47 +84,9 @@ class MDP:
           T: Transition matrix.
           R: Reward matrix (i = state, j = action).
         """
-        self.S = S
-        self.A = A
+        super().__init__(S, A)
         self.T = T
         self.R = R
-
-    def action_index(self, a: int) -> int:
-        """Returns the index of a in the internal map.
-
-        Args:
-          a: action.
-
-        Returns:
-          the representation of a as an int that can be indexed in the internal
-          count matrix.
-        """
-        return a - 1
-
-    def state_index(self, s: int) -> int:
-        """Returns the index of s in the internal map.
-
-        Args:
-          s: state.
-
-        Returns:
-          the representation of s as an int that can be indexed in the internal
-          count matrix.
-        """
-        return s - 1
-
-    def row_index(self, s: int, a: int) -> int:
-        """Returns the index of (s, a) in the internal counts map."""
-
-        s_index = self.state_index(s)
-        a_index = self.action_index(a)
-        # states 3, actions 2
-        # a0s0  0*3 + 0 = 0
-        # a0s1  0*3 + 1 = 1
-        # a0s2  0*3 + 2 = 2
-        # a1s0  1*3 + 0 = 3
-        # a1s1  1*3 + 1 = 4
-        return a_index*self.S + s_index
 
     def transition_prob(self, s: int, a: int, next_s: int) -> float:
         i = self.row_index(s, a)
@@ -86,7 +111,7 @@ class MDP:
         return (next_state, self.R[s_index, a_index])
 
 
-class MaximumLikelihoodMDP():
+class MaximumLikelihoodMDP(IndexAdapter):
     """Class defining an MLE MDP."""
 
     def __init__(self, S: int, A: int, gamma: float, planner, logger_name: str = None):
@@ -98,20 +123,12 @@ class MaximumLikelihoodMDP():
           gamma: discount factor.
           planner: Planner.
         """
+
+        super().__init__(S, A)
         self.gamma = gamma
-        self.S = S
-        self.A = A
         self.rho = lil_matrix((S, A))
         self.planner = planner
-        # Maps action-state pairs, to potential next states.
-        # Row format:
-        # action 0 - state 0
-        # action 0 - state 1
-        # ...
-        # action 0 - state S-1
-        # action 1 - action 0
-        # ...
-        # action A-1 - state S-1
+        # Maps action-state pairs to potential next states.
         self.N = lil_matrix((S * A, S))
         self.U = lil_matrix((S, 1))
 
@@ -122,17 +139,6 @@ class MaximumLikelihoodMDP():
         """Wrapper around logging."""
         if self.logger:
             self.logger.log(level, msg)
-
-    def action_index(self, a: int) -> int:
-        """Returns the index of a in the internal map.
-
-        Args:
-          a: action.
-
-        Returns:
-          index of a in the internal representations.
-        """
-        return a - 1
 
     def actions(self) -> List[int]:
         """Returns actions for this MDP."""
@@ -158,34 +164,11 @@ class MaximumLikelihoodMDP():
         s_index = self.state_index(s)
         self.U[s_index, 0] = utility
 
-    def state_index(self, s: int) -> int:
-        """Returns the index of s in the internal map.
-
-        Args:
-          s: state.
-
-        Returns:
-          index of s in internal representations.
-        """
-        return s - 1
 
     def states(self) -> List[int]:
         """Returns sorted list of states for the model."""
 
         return np.arange(1, self.S + 1)
-
-    def row_index(self, s: int, a: int) -> int:
-        """Returns the index of (s, a) in the internal counts map."""
-
-        s_index = self.state_index(s)
-        a_index = self.action_index(a)
-        # states 3, actions 2
-        # a0s0  0*3 + 0 = 0
-        # a0s1  0*3 + 1 = 1
-        # a0s2  0*3 + 2 = 2
-        # a1s0  1*3 + 0 = 3
-        # a1s1  1*3 + 1 = 4
-        return a_index*self.S + s_index
 
     def add_count(self, s: int, a: int, next_s: int):
         """Adds 1 to count matrix.
@@ -271,24 +254,31 @@ class MaximumLikelihoodMDP():
 
         # T(s,a) = N(s, a, s') / N(s, a) if N(s, a) > 0 else 0
         T = lil_matrix(self.N.shape)
-        for a in self.actions():
-            # Get counts for all (state, action) pairs with action == a.
-            action_index = self.action_index(a)
-            divisor = N_sa[:, action_index]  # N(s, a == a), |S| x 1 matrix
 
-            # Get all N(s, a = a, s').
-            start_index = self.row_index(1, a)
-            end_index = self.row_index(self.S, a) + 1
-            counts = self.N[start_index:end_index, :]
+        if self.order == 'action':
+            for a in self.actions():
+                # Get counts for all (state, action) pairs with action == a.
+                action_index = self.action_index(a)
+                divisor = N_sa[:, action_index]  # N(s, a == a), |S| x 1 matrix
 
-            # Perform division along the row, so each entry of divisor divides
-            # a row in counts. All the transposing is empirically chosen.
-            T_sa = np.divide(
-                counts.toarray().T,
-                divisor,
-                out=np.zeros((self.S, self.S)),
-                where=(divisor != 0))
-            T[start_index:end_index, :] = T_sa.T
+                # Get all N(s, a = a, s').
+                start_index = self.row_index(1, a)
+                end_index = self.row_index(self.S, a) + 1
+                counts = self.N[start_index:end_index, :]
+
+                # Perform division along the row, so each entry of divisor
+                # divides a row in counts. All the transposing is empirical.
+                T_sa = np.divide(
+                    counts.toarray().T,
+                    divisor,
+                    out=np.zeros((self.S, self.S)),
+                    where=(divisor != 0))
+                T[start_index:end_index, :] = T_sa.T
+        elif self.order == 'state':
+            raise NotImplementedError('not implemented')
+        else:
+            raise ValueError(f'Unsupported ordering: {self.order}')
+
 
         return MDP(self.S, self.A, T, R)
 

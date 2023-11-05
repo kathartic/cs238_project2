@@ -2,7 +2,6 @@ import logging
 import pandas
 import numpy as np
 import time
-import sys
 import utils
 
 from explore import EGreedy
@@ -71,12 +70,11 @@ def main():
     max_iter = 300  # TODO(kathuan): tune this
     planner = RandomizedUpdate(update_count, file_name)
     model = MaximumLikelihoodMDP(S, A, gamma, planner, file_name)
-    utils.set_counts(model, df, logger)
+    utils.set_counts(model, df)
 
     # Run simulation and write output.
-    trajectory = simulate(model, EGreedy(), max_iter)
+    _ = simulate(model, EGreedy(), max_iter)
     end = time.time()
-    logger.info(f"Trajectory: {trajectory}")
     logger.critical(f"Elapsed time in seconds: {end - start}")
     utils.write_model_policy(file_name, model)
 
