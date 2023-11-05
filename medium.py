@@ -44,7 +44,7 @@ def main():
     gamma = utils.get_gamma(file_name)
     df, S, A = read_data(file_name, logger)
     state_size = 50000
-    max_iter = 50000  # TODO(kathuan): tune this
+    max_iter = 70000  # TODO(kathuan): tune this
     Q = lil_matrix((state_size, A))
     qlearn_model = qlearning.QLearning(state_size, A, gamma, Q, 0.2, df, logger)
 
@@ -56,12 +56,12 @@ def main():
       end = time.time()
       logger.critical("Unrecoverable failure")
       logger.critical(f"Elapsed time in seconds: {end - start}")
-      qlearning.write_policy(file_name, qlearn_model)
+      qlearning.write_policy(file_name, qlearn_model, logger)
       raise(e)
 
     end = time.time()
     logger.critical(f"Elapsed time in seconds: {end - start}")
-    qlearning.write_policy(file_name, qlearn_model)
+    qlearning.write_policy(file_name, qlearn_model, logger)
 
 
 if __name__ == '__main__':
