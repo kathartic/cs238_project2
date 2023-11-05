@@ -170,7 +170,7 @@ class MaximumLikelihoodMDP():
         return s - 1
 
     def states(self) -> List[int]:
-        """Returns list of states for the model."""
+        """Returns sorted list of states for the model."""
 
         return np.arange(1, self.S + 1)
 

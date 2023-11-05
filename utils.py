@@ -1,56 +1,66 @@
 import logging
+import pandas
 import numpy as np
 
+from explore import EGreedy
 from mdp import MaximumLikelihoodMDP
 from typing import List, Tuple
 
-def simulate(
-        model: MaximumLikelihoodMDP,
-        policy,
-        max_iter: int) -> np.ndarray:
-    """Simulates using model, policy.
+
+def get_gamma(file_name: str) -> float:
+    """Returns discount factor for supported filenames.
+
+    Values taken from course website.
 
     Args:
-      model: Model to simulate.
-      policy: Policy to follow.
-      max_iter: maximum iterations.
+      file_name: supported filenames are "small", "medium", or "large".
 
     Returns:
-      trajectory taken in (state, action) pairs.
+      discount factor
     """
+    if file_name == "small":
+        return 0.95
+    elif file_name == "medium":
+        return 1.0
+    elif file_name == "large":
+        return 0.95
+    else:
+        raise ValueError(f"Unsupported file: {file_name}")
 
-    s = np.random.choice(model.states())
-    trajectory = np.zeros((max_iter, 2))
-    for i in range(max_iter):
-        a, next_s = model.simulate(policy, s)
-        trajectory[i][0] = s
-        trajectory[i][1] = a
-        s = next_s
-    return trajectory
+
+def set_counts(model: MaximumLikelihoodMDP,
+               df: pandas.DataFrame,
+               logger: logging.Logger):
+    """Sets counts and rewards for the given model."""
+
+    for _, row in df.iterrows():
+        model.add_count(row['s'], row['a'], row['sp'])
+        model.set_reward(row['s'], row['a'], row['r'])
+    logger.info(f'Counts: {model.N.toarray()}')
+    logger.info(f'Rewards: {model.rho.toarray()}')
 
 
-def write_policy(file_name: str,
-                 S: List[int],
-                 A: List[int],
-                 trajectory: List[Tuple[int, int]]):
+def write_model_policy(file_name: str,
+                 model: MaximumLikelihoodMDP):
     """Writes policy to file <file_name>.policy.
 
     Each row i in the file corresponds to the action taken for the state i.
 
     Args:
-      file_name: filename to write to.
-      S: state space.
-      A: action space.
-      trajectory: trajectory taken.
+      model: Model
     """
-    raise NotImplementedError("write_policy() not implemented.")
+    egreedy = EGreedy(epsilon = 0)
+    with open(file_name + '.policy', 'w') as f:
+        for state in model.states():
+            best_action = egreedy(model, state)
+            f.write("{}\n".format(best_action))
 
 
-def make_logger(logger_name: str) -> logging.Logger:
+def make_logger(logger_name: str, level = logging.INFO) -> logging.Logger:
     logger = logging.getLogger(logger_name)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(level)
     fh = logging.FileHandler(logger_name + '.log')
-    fh.setLevel(logging.INFO)
+    fh.setLevel(level)
     formatter = logging.Formatter('%(asctime)s - %(levelname)s: %(message)s')
     fh.setFormatter(formatter)
     logger.addHandler(fh)

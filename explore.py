@@ -3,16 +3,17 @@ import numpy as np
 
 from mdp import MaximumLikelihoodMDP
 
-# sure, why  not. have some globals.
-alpha = 0.99
-epsilon = 0.2
 
 class EGreedy():
     """Implements e-greedy policy."""
 
-    def __init__(self, logger: logging.Logger = None):
-        self.epsilon = 0.3
-        self.alpha = 0.97
+    def __init__(self,
+                 epsilon: float = 0.3,
+                 alpha: float = 0.97,
+                 logger: logging.Logger = None):
+
+        self.epsilon = epsilon
+        self.alpha = alpha
         self.logger = logger
 
     def __call__(self, model: MaximumLikelihoodMDP, s: int) -> int:

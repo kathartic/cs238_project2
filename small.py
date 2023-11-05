@@ -11,27 +11,6 @@ from randomizedupdate import RandomizedUpdate
 from typing import Tuple
 
 
-def get_gamma(file_name: str) -> float:
-    """Returns discount factor for supported filenames.
-
-    Values taken from course website.
-
-    Args:
-      file_name: supported filenames are "small", "medium", or "large".
-
-    Returns:
-      discount factor
-    """
-    if file_name == "small":
-        return 0.95
-    elif file_name == "medium":
-        return 1.0
-    elif file_name == "large":
-        return 0.95
-    else:
-        raise ValueError(f"Unsupported file: {file_name}")
-
-
 def read_data(file_name: str,
               logger: logging.Logger) -> Tuple[pandas.DataFrame, int, int]:
     """Opens file and reads data.
@@ -55,41 +34,51 @@ def read_data(file_name: str,
     return (df, S.size, A.size)
 
 
-def set_counts(model: MaximumLikelihoodMDP,
-               df: pandas.DataFrame,
-               logger: logging.Logger):
-    """Sets counts and rewards for the given model."""
+def simulate(
+        model: MaximumLikelihoodMDP,
+        policy,
+        max_iter: int) -> np.ndarray:
+    """Simulates using model, policy.
 
-    for _, row in df.iterrows():
-        model.add_count(row['s'], row['a'], row['sp'])
-        model.set_reward(row['s'], row['a'], row['r'])
-    logger.info(f'Counts: {model.N.toarray()}')
-    logger.info(f'Rewards: {model.rho.toarray()}')
+    Args:
+      model: Model to simulate.
+      policy: Policy to follow.
+      max_iter: maximum iterations.
+
+    Returns:
+      trajectory taken in (state, action) pairs.
+    """
+
+    s = np.random.choice(model.states())
+    trajectory = np.zeros((max_iter, 2))
+    for i in range(max_iter):
+        a, next_s = model.simulate(policy, s)
+        trajectory[i][0] = s
+        trajectory[i][1] = a
+        s = next_s
+    return trajectory
 
 
 def main():
-    if len(sys.argv) != 2:
-        raise Exception("usage: python project2.py <infile>.csv")
-
-    file_name = sys.argv[1]
+    file_name = "small"
     logger = utils.make_logger(file_name)
     start = time.time()
 
     # Set up MDP, planner.
-    gamma = get_gamma(file_name)
+    gamma = utils.get_gamma(file_name)
     df, S, A = read_data(file_name, logger)
     update_count = 8  # TODO(kathuan): tune this
-    max_iter = S  # TODO(kathuan): tune this
+    max_iter = 300  # TODO(kathuan): tune this
     planner = RandomizedUpdate(update_count, file_name)
     model = MaximumLikelihoodMDP(S, A, gamma, planner, file_name)
-    set_counts(model, df, logger)
+    utils.set_counts(model, df, logger)
 
     # Run simulation and write output.
-    trajectory = utils.simulate(model, EGreedy(), max_iter)
+    trajectory = simulate(model, EGreedy(), max_iter)
     end = time.time()
     logger.info(f"Trajectory: {trajectory}")
     logger.critical(f"Elapsed time in seconds: {end - start}")
-    utils.write_policy(file_name, S, A, trajectory)
+    utils.write_model_policy(file_name, model)
 
 
 if __name__ == '__main__':
