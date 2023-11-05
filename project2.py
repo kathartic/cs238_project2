@@ -5,7 +5,7 @@ import time
 import sys
 import utils
 
-from explore import e_greedy
+from explore import EGreedy
 from mdp import MaximumLikelihoodMDP
 from randomizedupdate import RandomizedUpdate
 from typing import Tuple
@@ -78,15 +78,16 @@ def main():
     # Set up MDP, planner.
     gamma = get_gamma(file_name)
     df, S, A = read_data(file_name, logger)
-    update_count = 2  # TODO(kathuan): tune this
+    update_count = 8  # TODO(kathuan): tune this
     max_iter = S  # TODO(kathuan): tune this
     planner = RandomizedUpdate(update_count, file_name)
     model = MaximumLikelihoodMDP(S, A, gamma, planner, file_name)
     set_counts(model, df, logger)
 
     # Run simulation and write output.
-    trajectory = utils.simulate(model, e_greedy, max_iter)
+    trajectory = utils.simulate(model, EGreedy(), max_iter)
     end = time.time()
+    logger.info(f"Trajectory: {trajectory}")
     logger.critical(f"Elapsed time in seconds: {end - start}")
     utils.write_policy(file_name, S, A, trajectory)
 

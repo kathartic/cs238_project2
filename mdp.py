@@ -21,12 +21,12 @@ class MDP:
           T: Transition matrix.
           R: Reward matrix (i = state, j = action).
         """
-        self.state_count = S
-        self.action_count = A
+        self.S = S
+        self.A = A
         self.T = T
         self.R = R
 
-    def __action_index(self, a: int) -> int:
+    def action_index(self, a: int) -> int:
         """Returns the index of a in the internal map.
 
         Args:
@@ -38,7 +38,7 @@ class MDP:
         """
         return a - 1
 
-    def __state_index(self, s: int) -> int:
+    def state_index(self, s: int) -> int:
         """Returns the index of s in the internal map.
 
         Args:
@@ -77,11 +77,12 @@ class MDP:
         Returns:
           Tuple of next state, reward.
         """
-        s_index = self.__state_index(s)
-        a_index = self.__action_index(a)
+        s_index = self.state_index(s)
+        a_index = self.action_index(a)
         i = self.row_index(s, a)
-        next_state = np.random.choice(np.arange(1, self.state_count + 1),
-                                      p = np.array(self.T[i, :]))
+        probs = np.array(self.T[i, :].toarray()).reshape((self.S,))
+        next_state = np.random.choice(np.arange(1, self.S + 1),
+                                      p = probs)
         return (next_state, self.R[s_index, a_index])
 
 
@@ -142,7 +143,7 @@ class MaximumLikelihoodMDP():
         """Returns utility for state s."""
 
         s_index = self.state_index(s)
-        return self.U[s_index][0]
+        return self.U[s_index, 0]
 
     def set_reward(self, s: int, a: int, reward: float):
         """Sets reward for state s and action a."""
@@ -155,7 +156,7 @@ class MaximumLikelihoodMDP():
         """Sets utility for state s."""
 
         s_index = self.state_index(s)
-        self.U[s_index][0] = utility
+        self.U[s_index, 0] = utility
 
     def state_index(self, s: int) -> int:
         """Returns the index of s in the internal map.
@@ -215,7 +216,6 @@ class MaximumLikelihoodMDP():
         a_index = self.action_index(a)
         i = self.row_index(s, a)
         n = np.sum(self.N[i, :])
-        self.__log(f"Lookahead, N({s}, {a}) = {n}")
         if n == 0:
             return 0.0
 
@@ -223,7 +223,6 @@ class MaximumLikelihoodMDP():
         trans_prob = lambda next_state : self.N[i, self.state_index(next_state)] / n
         utilities = [trans_prob(s_next)*self.get_utility(s_next) for s_next in self.states()]
         utility = r + self.gamma * np.sum(utilities)
-        self.__log(f"Lookahead, U({s}, {a}) = {utility}")
         return utility
 
     def backup(self, s: int) -> float:
@@ -237,6 +236,7 @@ class MaximumLikelihoodMDP():
         Returns:
           Utility of optimal action.
         """
+
         return np.max([self.lookahead(s, a) for a in self.actions()])
 
     def update(self, s: int, a: int, r: float, next_s: int):
@@ -251,6 +251,8 @@ class MaximumLikelihoodMDP():
         s_index = self.state_index(s)
         a_index = self.action_index(a)
         next_s_index = self.state_index(next_s)
+
+        # N(s, a, s') += 1, rho[s, a] += r
         self.add_count(s, a, next_s)
         self.rho[s_index, a_index] = self.rho[s_index, a_index] + r
         self.planner.update(self, s_index, a_index, r, next_s_index)
@@ -276,7 +278,7 @@ class MaximumLikelihoodMDP():
 
             # Get all N(s, a = a, s').
             start_index = self.row_index(1, a)
-            end_index = self.row_index(self.S, a)
+            end_index = self.row_index(self.S, a) + 1
             counts = self.N[start_index:end_index, :]
 
             # Perform division along the row, so each entry of divisor divides

@@ -27,7 +27,7 @@ class RandomizedUpdate(Planner):
 
     def update(self, model: MaximumLikelihoodMDP, s: int, a: int, r: int, next_s: int):
         new_states = np.random.choice(model.states(), self.m, replace=False)
-        new_states = np.concatenate([s], new_states, axis=None)
+        new_states = np.concatenate(([s], new_states), axis=None)
         assert new_states[0] == s, "Needs to work this way"
         for state in new_states:
             u = model.get_utility(state)

@@ -53,18 +53,21 @@ class PrioritizedUpdate(Planner):
         model.set_utility(model.backup(s))
         new_utility = model.get_utility(s)
         self.__log(f"Updated utility for state {s}: {u} to {new_utility}")
+        utility_diff = abs(new_utility - u)
+        if utility_diff == 0:
+            return
 
         mdp = model.to_mdp()
-
         for s_bar in model.states():
             for a_bar in model.actions():
                 t = mdp.transition_prob(s, a_bar, s_bar)
-                priority = t * abs(new_utility - u)
-                if priority > 0:
-                    current_priority = self.__current_priority(s_bar)
-                    updated_priority = max(priority, current_priority)
-                    self.__log(f"Updating priority of state {s_bar} to {updated_priority}")
-                    self.pq.put((updated_priority, s_bar))
+                if t == 0:
+                    continue
+
+                current_priority = self.__current_priority(s_bar)
+                updated_priority = max(t * abs(new_utility - u), current_priority)
+                self.__log(f"Updating priority of state {s_bar} to {updated_priority}")
+                self.pq.put((updated_priority, s_bar))
 
 
     def update(self, model: MaximumLikelihoodMDP, s: int, a: int, r: float, next_s: int):
