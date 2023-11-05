@@ -40,7 +40,7 @@ class QLearning(mdp.IndexAdapter):
         if queried_df.size == 0:
             if self.logger is not None:
                 self.logger.warning(f'No results found for (s = {s}, a = {a}).')
-            return (np.random.choice(self.__choices()), -225.0)
+            return (np.random.choice(self.__choices()), -15.0)  # -225 for medium, -15 for large
         total_rows = queried_df.shape[0]
         random_row = np.random.choice(total_rows)
         row = queried_df.iloc[random_row]
