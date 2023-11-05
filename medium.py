@@ -6,8 +6,6 @@ import time
 import utils
 
 from explore import EGreedy
-from mdp import MaximumLikelihoodMDP
-from randomizedupdate import RandomizedUpdate
 from scipy.sparse import lil_matrix
 from typing import Tuple
 
@@ -46,12 +44,18 @@ def main():
     state_size = 50000
     max_iter = 70000  # TODO(kathuan): tune this
     Q = lil_matrix((state_size, A))
-    qlearn_model = qlearning.QLearning(state_size, A, gamma, Q, 0.2, df, logger)
+    qlearn_model = qlearning.QLearning(state_size,
+                                       A,
+                                       gamma,
+                                       Q,
+                                       0.25,
+                                       df,
+                                       known_states=S,
+                                       logger=logger)
 
     # Run simulation and write output.
     try:
-      qlearning.simulate_maximum_likelihood(
-          qlearn_model, EGreedy(epsilon=0.3, logger=logger), max_iter, set(S))
+      qlearn_model.simulate(EGreedy(logger=logger), max_iter)
     except Exception as e:
       end = time.time()
       logger.critical("Unrecoverable failure")

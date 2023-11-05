@@ -13,6 +13,7 @@ class QLearning(mdp.IndexAdapter):
                  Q,
                  alpha: float,
                  df: pandas.DataFrame,
+                 known_states: Set[int] = None,
                  logger: logging.Logger = None):
         self.S = S
         self.A = A
@@ -21,6 +22,7 @@ class QLearning(mdp.IndexAdapter):
         self.logger = logger
         self.alpha = alpha
         self.df = df
+        self.known_states = known_states
 
     def states(self) -> List[int]:
         return np.arange(1, self.S + 1)
@@ -28,25 +30,23 @@ class QLearning(mdp.IndexAdapter):
     def actions(self) -> List[int]:
         return np.arange(1, self.A + 1)
 
-    def allowable_actions(self, s: int) -> List[int]:
-        """Returns allowable actions from state s."""
-        queried_df = self.df.query('s == @s')
-        actions = queried_df.loc[:, 'a'].unique()
-        if self.logger is not None:
-            self.logger.info(f'Allowable actions for state {s}: {actions}')
-        return actions
+    def __choices(self) -> List[int]:
+        return list(self.known_states) if self.known_states is not None else self.states()
 
     def next_state(self, s: int, a: int) -> Tuple[int, float]:
         """Returns tuple of next state, reward."""
 
         queried_df = self.df.query('s == @s & a == @a')
+        if queried_df.size == 0:
+            if self.logger is not None:
+                self.logger.warning(f'No results found for (s = {s}, a = {a}).')
+            return (np.random.choice(self.__choices()), -225.0)
         total_rows = queried_df.shape[0]
         random_row = np.random.choice(total_rows)
         row = queried_df.iloc[random_row]
         next_s = row.loc['sp']
         r = row.loc['r']
         if self.logger is not None:
-            self.logger.info(queried_df)
             self.logger.info(f'Next action: {next_s}, r: {r}')
         return (next_s, r)
 
@@ -61,31 +61,29 @@ class QLearning(mdp.IndexAdapter):
         q_sa = self.Q[s_index, a_index]
         self.Q[s_index, a_index] = q_sa + self.alpha*(r + discounted_max - q_sa)
 
+    def simulate(
+            self,
+            policy,
+            max_iter: int):
+        choices = self.__choices()
+        s = np.random.choice(choices)
+        loop_count = 0
+        for _ in range(max_iter):
+            a = policy(self, s)
+            next_s, r = self.next_state(s, a)
+            self.update(s, a, r, next_s)
 
-def simulate_maximum_likelihood(
-        model: QLearning,
-        policy,
-        max_iter: int,
-        allowable_states: Set[int] = None):
-    choices = list(allowable_states) if allowable_states is not None else model.states()
-    s = np.random.choice(choices)
-    loop_count = 0
-    for _ in range(max_iter):
-        allowed_actions = model.allowable_actions(s)
-        if len(allowed_actions) == 0 or loop_count > 10:
-            s = np.random.choice(choices)
-            continue
-        a = policy(model, s, allowed_actions)
-        next_s, r = model.next_state(s, a)
-        model.update(s, a, r, next_s)
+            # Loop detection.
+            if next_s == s:
+                loop_count += 1
+            else:
+                loop_count = 0
+            if loop_count > 10:
+                next_s = np.random.choice(choices)
+                if self.logger is not None:
+                    self.logger.warning(f'Detected loop, going to random state {next_s}')
 
-        # Loop detection.
-        if next_s == s:
-            loop_count += 1
-        else:
-            loop_count = 0
-
-        s = next_s
+            s = next_s
 
 
 def write_policy(file_name: str, model: QLearning, logger: logging.Logger = None):
